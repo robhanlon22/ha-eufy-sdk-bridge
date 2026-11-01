@@ -1,0 +1,48 @@
+- id: eufy_doorbell_motion_webhook
+  alias: Doorbell motion
+  description: Receive only motion from the household Eufy app.
+  triggers:
+    - trigger: webhook
+      webhook_id: !secret eufy_motion_webhook
+      allowed_methods: [POST]
+      local_only: true
+  conditions:
+    - condition: template
+      value_template: "{{ trigger.json is mapping and trigger.json.get('motion') == true }}"
+  actions:
+    - event: eufy_doorbell_motion
+  mode: parallel
+  max: 2
+
+- id: porch_lights_on_doorbell_motion
+  alias: Porch lights on doorbell motion
+  description: After dark, light the porch for three minutes after the last motion. Leave previously lit lamps alone.
+  triggers:
+    - trigger: event
+      event_type: eufy_doorbell_motion
+  variables:
+    motion_lights: "{{ expand('light.porch_light', 'light.porch_light_2') | selectattr('state', 'eq', 'off') | map(attribute='entity_id') | list }}"
+  conditions:
+    - condition: state
+      entity_id: sun.sun
+      state: below_horizon
+    - condition: template
+      value_template: "{{ motion_lights | count > 0 }}"
+  actions:
+    - action: light.turn_on
+      target:
+        entity_id: "{{ motion_lights }}"
+    - repeat:
+        sequence:
+          - wait_for_trigger:
+              - trigger: event
+                event_type: eufy_doorbell_motion
+            timeout: "00:03:00"
+        until:
+          - condition: template
+            value_template: "{{ wait.trigger is none }}"
+    - action: light.turn_off
+      target:
+        entity_id: "{{ motion_lights }}"
+  mode: single
+  max_exceeded: silent

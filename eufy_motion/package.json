@@ -1,0 +1,9 @@
+{
+  "name": "household-eufy-motion",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test test/*.test.mjs" },
+  "dependencies": { "@mega-yfue/eufy-sdk": "0.4.0" },
+  "overrides": { "ip-address": "10.7.4" }
+}

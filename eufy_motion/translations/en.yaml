@@ -1,0 +1,10 @@
+configuration:
+  email:
+    name: Eufy email
+  password:
+    name: Eufy password
+  country:
+    name: Account country
+    description: Two-letter country code used when the Eufy account was registered.
+  webhook_id:
+    name: Home Assistant webhook ID

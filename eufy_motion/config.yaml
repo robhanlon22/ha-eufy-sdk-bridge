@@ -1,0 +1,22 @@
+name: Eufy Motion
+version: "1.0.0"
+slug: eufy_motion
+description: Forward T8210 doorbell motion to the household's porch-light automation.
+url: https://github.com/robhanlon22/ha-eufy-sdk-bridge
+arch:
+  - amd64
+  - aarch64
+startup: application
+boot: auto
+init: false
+stdin: true
+options:
+  email: ""
+  password: ""
+  country: US
+  webhook_id: ""
+schema:
+  email: str
+  password: password
+  country: str
+  webhook_id: password

@@ -1,6 +1,0 @@
-node_modules
-data
-dist
-coverage
-*.tgz
-package-lock.json

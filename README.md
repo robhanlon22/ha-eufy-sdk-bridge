@@ -1,79 +1,27 @@
-# ha-eufy-sdk-bridge
+# Eufy Motion
 
-[![CI](https://github.com/mega-yfue/ha-eufy-sdk-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/mega-yfue/ha-eufy-sdk-bridge/actions/workflows/ci.yml)
-[![node](https://img.shields.io/badge/node-%E2%89%A524-brightgreen?logo=nodedotjs&logoColor=white)](./package.json)
-[![license](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE)
+Household fork of `mega-yfue/ha-eufy-sdk-bridge`. One T8210 doorbell forwards motion to a local Home Assistant webhook. The Eufy SDK handles sign-in, TLS, saved sessions, and event delivery. Eufy account access is still required.
 
-The host-facing daemon: one process that logs into eufy **once** and exposes the
-[`eufy-sdk`](https://github.com/mega-yfue/eufy-sdk) to a frontend — Home Assistant, a web UI,
-anything. Ships as a multi-arch Docker image with [go2rtc](https://github.com/AlexxIT/go2rtc)
-bundled, so live camera video is available as RTSP / WebRTC / MSE / HLS with nothing else to install.
+The original bridge's control server, video services, image storage, face-name lookup, Solix support, and publish workflows have been removed. This app has no listening ports, Home Assistant API token, Supervisor API access, or custom integration. It sends only `{"motion":true}` to its configured local webhook. It does not change camera settings.
 
-```
-WS    :3000/ws             control, state, events     ← the frontend talks to this
-HTTP  :3000/stream/<sn>    live video (Annex-B)       ← go2rtc pulls this
-HTTP  :3000/snapshot/<sn>  a JPEG still
-HTTP  :3000/clip/<sn>      the latest detection's recording, as an mp4 (HomeBase 2)
-HTTP  :3000/healthz        which cameras are streaming
-```
+This repository targets two caregivers and one installation. The porch automation and webhook ID are configured on that installation; the ID and Eufy credentials must never be committed.
 
-Video is deliberately **not** on the WebSocket: the WS hands back a URL, and _connecting to that URL
-is what starts the camera — disconnecting is what stops it_. There is no "stream is running" flag to
-drift out of sync.
+## Install and sign in
 
-## Run it
+Add this repository in Settings → Apps → App store → Repositories. Supervisor builds the app from this source; no upstream prebuilt bridge image is used. Install Eufy Motion, enter the Eufy email/password, account country, and household webhook ID in Configuration, then start it.
 
-Pull the published image and run it (bundles the SDK + go2rtc):
+If Eufy requests a verification code, send `{"code":"123456"}` with Home Assistant's Supervisor app-input action (`hassio.app_stdin`, called `hassio.addon_stdin` on older versions). Use the installed app slug. Captcha answers use `{"captcha":"answer"}`. `{"status":true}` reports connection state and returns a captcha image only while that challenge is pending. App input is handled by Supervisor's authenticated API; the app does not expose a sign-in endpoint.
 
-```bash
-docker run -d --name eufy-bridge --network host \
-  -e EUFY_EMAIL='you@example.com' -e EUFY_PASSWORD='…' -e EUFY_COUNTRY='GB' \
-  -v /opt/eufy-bridge-data:/app/data \
-  ghcr.io/mega-yfue/ha-eufy-sdk-bridge:latest
-```
+The SDK opens its normal HomeBase/event connections after sign-in. Stored-snapshot acquisition and video prewarming are disabled. No stream, image, face, or device-control APIs are called by this app. A separate install identity prevents it from reusing the SDK's account-derived identity.
 
-or with Compose (`cp .env.example .env` first): `docker compose up -d`.
+Enable the Supervisor watchdog. It restarts the app if the event connection stays down for five minutes. An expired Eufy session may require another verification code. Check the app log for sign-in or connection failures; logs omit credentials, device serials, images, and upstream error bodies except an explicitly requested captcha image.
 
-**Full deploy guide (alongside Home Assistant, config reference, first-run 2FA/captcha):**
-[docs/docker-compose.md](./docs/docker-compose.md) · **WS protocol:** [docs/ws-protocol.md](./docs/ws-protocol.md) ·
-**Troubleshooting:** [docs/troubleshooting.md](./docs/troubleshooting.md)
+## Build and check
 
-## Where it fits
+The Node base image is pinned by digest. The SDK version and its dependencies are locked with integrity hashes. `ip-address` is pinned to the patched 10.7.4 release. Install scripts are disabled. Runtime builds do not download video binaries.
 
-| Repo                                                                  | Role                                          |
-| --------------------------------------------------------------------- | --------------------------------------------- |
-| [`eufy-sdk`](https://github.com/mega-yfue/eufy-sdk)                   | the HA-agnostic library                       |
-| **`ha-eufy-sdk-bridge`**                                              | **this** — WS + HTTP + go2rtc daemon (Docker) |
-| [`ha-eufy-sdk-addon`](https://github.com/mega-yfue/ha-eufy-sdk-addon) | Home Assistant add-on wrapper                 |
-| [`ha-eufy-sdk`](https://github.com/mega-yfue/ha-eufy-sdk)             | the HACS integration (front door)             |
+Run `npm ci --ignore-scripts`, `npm test`, and `npm audit --omit=dev` inside `eufy_motion/`. Test a real doorbell detection after installation. Keep updates manual and record the installed source revision.
 
-> Status: working — WS control + auth-over-WS (2FA/captcha), device listing, snapshots, and go2rtc
-> streaming. **Optional Anker Solix** support (power stations / smart meter / Solarbank, a separate account)
-> via `SOLIX_EMAIL` / `SOLIX_PASSWORD` — see [docs/ws-protocol.md](./docs/ws-protocol.md) (`solix.*`).
-> Published image: `ghcr.io/mega-yfue/ha-eufy-sdk-bridge` (multi-arch: `amd64` · `arm64`).
-> **Publishing a GitHub Release** builds and pushes the versioned + `:latest` tags
-> automatically ([`.github/workflows/publish-ghcr.yml`](./.github/workflows/publish-ghcr.yml)); the same
-> build runs locally via [`scripts/publish-multiarch.sh`](./scripts/publish-multiarch.sh). A merge to the
-> `dev` branch publishes a rolling `:dev` tag for testing.
+The two porch lights turn on after dark for three minutes, extended by further motion. Lights that were already on are left alone. If HA restarts during that interval, the running wait ends and those lights can remain on.
 
-## Contributing
-
-Contributions are welcome — please branch from **`dev`** and open your PR against **`dev`** (not
-`main`). See [CONTRIBUTING.md](./CONTRIBUTING.md) for the branch model, CI checks, and how releases
-are cut.
-
-## Develop
-
-The bridge is ESM (no build step) and depends on the SDK as a normal npm package
-([`@mega-yfue/eufy-sdk`](https://www.npmjs.com/package/@mega-yfue/eufy-sdk)) — `npm install` pulls it
-from the registry, no sibling checkout needed.
-
-```bash
-npm install
-npm test          # node --test
-npm run lint      # prettier --check .   (npm run format to fix)
-```
-
-Every PR into `main` or `dev` runs the CI gate ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)):
-`npm ci` → lint → compile (`node --check` on each `.mjs`) → test. `main` is the public release line;
-`dev` is the development line (rolling `:dev` image).
+Upstream source and license history are retained in Git. See LICENSE for Apache-2.0 terms.
