@@ -24,6 +24,6 @@ The Node base image is pinned by digest. The SDK version and its dependencies ar
 
 Run `npm ci --ignore-scripts`, `npm test`, and `npm audit --omit=dev` inside `eufy_motion/`. Test a real doorbell detection after installation. Keep updates manual and record the installed source revision.
 
-The two porch lights turn on after dark for three minutes, extended by further motion. Lights that were already on are left alone. If HA restarts during that interval, the running wait ends and those lights can remain on.
+The two porch lights turn on after dark for three minutes, extended by further motion. Lights that were already on are left alone. If either scheduled turn-on runs during the timer, the timer leaves the lights on. If HA restarts during that interval, the running wait ends and those lights can remain on.
 
 Upstream source and license history are retained in Git. See LICENSE for Apache-2.0 terms.

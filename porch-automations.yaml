@@ -21,6 +21,7 @@
     - trigger: event
       event_type: eufy_doorbell_motion
   variables:
+    motion_started: "{{ as_timestamp(now()) }}"
     motion_lights: "{{ expand('light.porch_light', 'light.porch_light_2') | selectattr('state', 'eq', 'off') | map(attribute='entity_id') | list }}"
   conditions:
     - condition: state
@@ -41,6 +42,10 @@
         until:
           - condition: template
             value_template: "{{ wait.trigger is none }}"
+    - condition: template
+      value_template: >-
+        {{ as_timestamp(state_attr('automation.porch_lights_before_sunrise', 'last_triggered'), 0) < motion_started
+           and as_timestamp(state_attr('automation.porch_lights_before_sunset', 'last_triggered'), 0) < motion_started }}
     - action: light.turn_off
       target:
         entity_id: "{{ motion_lights }}"
