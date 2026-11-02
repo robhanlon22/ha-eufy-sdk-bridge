@@ -10,6 +10,8 @@ This repository targets two caregivers and one installation. The porch automatio
 
 Add this repository in Settings → Apps → App store → Repositories. Supervisor builds the app from this source; no upstream prebuilt bridge image is used. Install Eufy Motion, enter the Eufy email/password, account country, and household webhook ID in Configuration, then start it.
 
+Replace the placeholder in `porch-automations.yaml` with the app's webhook ID before adding the two automations to HA. Keep the value in the private HA configuration. HA's automation editor does not support `!secret` references in `automations.yaml`; using one breaks the editor for all automations.
+
 If Eufy requests a verification code, send `{"code":"123456"}` with Home Assistant's Supervisor app-input action (`hassio.app_stdin`, called `hassio.addon_stdin` on older versions). Use the installed app slug. Captcha answers use `{"captcha":"answer"}`. `{"status":true}` reports connection state and returns a captcha image only while that challenge is pending. App input is handled by Supervisor's authenticated API; the app does not expose a sign-in endpoint.
 
 The SDK opens its normal HomeBase/event connections after sign-in. Stored-snapshot acquisition and video prewarming are disabled. No stream, image, face, or device-control APIs are called by this app. A separate install identity prevents it from reusing the SDK's account-derived identity.

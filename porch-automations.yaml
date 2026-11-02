@@ -3,7 +3,7 @@
   description: Receive only motion from the household Eufy app.
   triggers:
     - trigger: webhook
-      webhook_id: !secret eufy_motion_webhook
+      webhook_id: "REPLACE_WITH_THE_APP_WEBHOOK_ID"
       allowed_methods: [POST]
       local_only: true
   conditions:
